@@ -13,8 +13,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/media', [MediaController::class, 'index']);
     Route::post('/media', [MediaController::class, 'store']);
     Route::get('/media/{media}', [MediaController::class, 'show']);
+    Route::put('/media/{media}', [MediaController::class, 'update']);
+    Route::patch('/media/{media}', [MediaController::class, 'update']);
+    Route::delete('/media/{media}', [MediaController::class, 'destroy']);
     Route::post('/media/{media}/seasons', [MediaController::class, 'storeSeason']);
     Route::patch('/seasons/{season}', [MediaController::class, 'updateSeason']);
+    Route::delete('/seasons/{season}', [MediaController::class, 'destroySeason']);
     Route::post('/seasons/{season}/episodes', [MediaController::class, 'storeEpisode']);
     Route::patch('/episodes/{episode}', [MediaController::class, 'updateEpisode']);
 
