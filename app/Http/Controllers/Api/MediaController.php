@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Http\Requests\StoreMediaRequest;
+use App\Http\Requests\UpdateMediaRequest;
 use App\Models\Filme;
 use App\Models\Serie;
 use App\Models\Anime;
@@ -59,6 +60,47 @@ class MediaController extends Controller {
         return response()->json($media->load('seasons.episodes'));
     }
 
+    public function update(UpdateMediaRequest $request, Media $media) {
+        if($media->user_id !== auth()->id()) abort(403);
+
+        $data = $request->validated();
+        unset($data['type']); // tipo não é editável
+
+        // capa: se enviou arquivo novo, substitui (apaga o antigo do disco);
+        // se não enviou, mantém a capa atual
+        if ($request->hasFile('image')) {
+            if ($media->image && !str_starts_with($media->image, 'http')) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($media->image);
+            }
+            $data['image'] = $request->file('image')->store('covers', 'public');
+        } else {
+            unset($data['image']);
+        }
+
+        // serie/anime não usam datas no nível da mídia
+        if (in_array($media->type, ['serie', 'anime'], true)) {
+            unset($data['release_date'], $data['is_watched'], $data['watched_at']);
+        } elseif (array_key_exists('is_watched', $data) && empty($data['is_watched'])) {
+            $data['is_watched'] = false;
+            $data['watched_at'] = null;
+        }
+
+        $media->update($data);
+        return response()->json($media->fresh()->load('seasons.episodes'));
+    }
+
+    public function destroy(Media $media) {
+        if($media->user_id !== auth()->id()) abort(403);
+
+        // apaga a capa do disco (se for upload local)
+        if ($media->image && !str_starts_with($media->image, 'http')) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($media->image);
+        }
+
+        $media->delete(); // seasons + episodes caem por cascadeOnDelete
+        return response()->json(['message' => 'Item excluído com sucesso.']);
+    }
+
     public function filmes() {
         return response()->json(Filme::where('user_id', auth()->id())->get());
     }
@@ -92,6 +134,12 @@ class MediaController extends Controller {
 
         $season->update($data);
         return response()->json($season->fresh());
+    }
+
+    public function destroySeason(Season $season) {
+        if($season->media->user_id !== auth()->id()) abort(403);
+        $season->delete(); // episódios caem por cascadeOnDelete
+        return response()->json(['message' => 'Temporada excluída com sucesso.']);
     }
 
     public function storeEpisode(Request $request, Season $season) {
