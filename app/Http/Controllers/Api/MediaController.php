@@ -3,19 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Http\Requests\StoreMediaRequest;
 use App\Http\Requests\UpdateMediaRequest;
-use App\Models\Filme;
-use App\Models\Serie;
 use App\Models\Anime;
+use App\Models\Episode;
+use App\Models\Filme;
 use App\Models\Media;
 use App\Models\Season;
-use App\Models\Episode;
+use App\Models\Serie;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
-class MediaController extends Controller {
-
-    public function store(StoreMediaRequest $request) {
+class MediaController extends Controller
+{
+    public function store(StoreMediaRequest $request)
+    {
         $data = $request->validated();
         $data['user_id'] = auth()->id();
 
@@ -46,22 +48,31 @@ class MediaController extends Controller {
 
         return response()->json([
             'message' => 'Item adicionado à lista com sucesso!',
-            'data' => $media
+            'data' => $media,
         ], 201);
     }
 
-    public function index() {
+    public function index()
+    {
         $listaCompleta = Media::with('seasons.episodes')->where('user_id', auth()->id())->get();
+
         return response()->json($listaCompleta);
     }
 
-    public function show(Media $media) {
-        if($media->user_id !== auth()->id()) abort(403);
+    public function show(Media $media)
+    {
+        if ($media->user_id !== auth()->id()) {
+            abort(403);
+        }
+
         return response()->json($media->load('seasons.episodes'));
     }
 
-    public function update(UpdateMediaRequest $request, Media $media) {
-        if($media->user_id !== auth()->id()) abort(403);
+    public function update(UpdateMediaRequest $request, Media $media)
+    {
+        if ($media->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $data = $request->validated();
         unset($data['type']); // tipo não é editável
@@ -69,8 +80,8 @@ class MediaController extends Controller {
         // capa: se enviou arquivo novo, substitui (apaga o antigo do disco);
         // se não enviou, mantém a capa atual
         if ($request->hasFile('image')) {
-            if ($media->image && !str_starts_with($media->image, 'http')) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($media->image);
+            if ($media->image && ! str_starts_with($media->image, 'http')) {
+                Storage::disk('public')->delete($media->image);
             }
             $data['image'] = $request->file('image')->store('covers', 'public');
         } else {
@@ -86,47 +97,71 @@ class MediaController extends Controller {
         }
 
         $media->update($data);
+
         return response()->json($media->fresh()->load('seasons.episodes'));
     }
 
-    public function destroy(Media $media) {
-        if($media->user_id !== auth()->id()) abort(403);
+    public function destroy(Media $media)
+    {
+        if ($media->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         // apaga a capa do disco (se for upload local)
-        if ($media->image && !str_starts_with($media->image, 'http')) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($media->image);
+        if ($media->image && ! str_starts_with($media->image, 'http')) {
+            Storage::disk('public')->delete($media->image);
         }
 
         $media->delete(); // seasons + episodes caem por cascadeOnDelete
+
         return response()->json(['message' => 'Item excluído com sucesso.']);
     }
 
-    public function filmes() {
+    public function filmes()
+    {
         return response()->json(Filme::where('user_id', auth()->id())->get());
     }
 
-    public function storeSeason(Request $request, Media $media) {
-        if($media->user_id !== auth()->id()) abort(403);
-        if(!in_array($media->type, ['serie', 'anime'], true)) {
+    public function storeSeason(Request $request, Media $media)
+    {
+        if ($media->user_id !== auth()->id()) {
+            abort(403);
+        }
+        if (! in_array($media->type, ['serie', 'anime'], true)) {
             return response()->json(['message' => 'Temporadas só existem para séries e animes.'], 422);
         }
 
         $data = $request->validate([
-            'season_number' => 'required|integer|min:1',
+            // limite: no máximo 30 temporadas por item (números de 1 a 30)
+            'season_number' => 'required|integer|min:1|max:30',
             'release_date' => 'nullable|date',
             'title' => 'nullable|string|max:255',
+        ], [
+            'season_number.max' => 'O número da temporada não pode ultrapassar 30.',
         ]);
+
+        // limite rígido: mesmo que o número pedido seja válido (1 a 30),
+        // o item não pode ultrapassar 30 temporadas no total
+        $requested = (int) $data['season_number'];
+        $season = $media->seasons()->where('season_number', $requested)->first();
+        if (! $season && $media->seasons()->count() >= 30) {
+            return response()->json(['message' => 'Este item já atingiu o limite de 30 temporadas.'], 422);
+        }
 
         // evita duplicar a mesma temporada
         $season = $media->seasons()->firstOrCreate(
             ['season_number' => $data['season_number']],
             ['release_date' => $data['release_date'] ?? null, 'title' => $data['title'] ?? null]
         );
+
         return response()->json($season, 201);
     }
 
-    public function updateSeason(Request $request, Season $season) {
-        if($season->media->user_id !== auth()->id()) abort(403);
+    public function updateSeason(Request $request, Season $season)
+    {
+        if ($season->media->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $data = $request->validate([
             'release_date' => 'nullable|date',
@@ -135,26 +170,45 @@ class MediaController extends Controller {
         ]);
 
         $season->update($data);
+
         return response()->json($season->fresh());
     }
 
-    public function destroySeason(Season $season) {
-        if($season->media->user_id !== auth()->id()) abort(403);
+    public function destroySeason(Season $season)
+    {
+        if ($season->media->user_id !== auth()->id()) {
+            abort(403);
+        }
         $season->delete(); // episódios caem por cascadeOnDelete
+
         return response()->json(['message' => 'Temporada excluída com sucesso.']);
     }
 
-    public function storeEpisode(Request $request, Season $season) {
-        if($season->media->user_id !== auth()->id()) abort(403);
+    public function storeEpisode(Request $request, Season $season)
+    {
+        if ($season->media->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $data = $request->validate([
-            'episode_number' => 'required|integer|min:1',
+            // limite: no máximo 50 episódios por temporada (números de 1 a 50)
+            'episode_number' => 'required|integer|min:1|max:50',
             'is_watched' => 'sometimes|boolean',
             'watched_at' => 'nullable|date',
+        ], [
+            'episode_number.max' => 'O número do episódio não pode ultrapassar 50.',
         ]);
 
-        if (!array_key_exists('is_watched', $data)) {
+        if (! array_key_exists('is_watched', $data)) {
             $data['is_watched'] = false;
+        }
+
+        // limite rígido: mesmo que o número pedido seja válido (1 a 50),
+        // a temporada não pode ultrapassar 50 episódios no total
+        $requested = (int) $data['episode_number'];
+        $episode = $season->episodes()->where('episode_number', $requested)->first();
+        if (! $episode && $season->episodes()->count() >= 50) {
+            return response()->json(['message' => 'Esta temporada já atingiu o limite de 50 episódios.'], 422);
         }
 
         // evita duplicar o mesmo episódio na temporada
@@ -162,11 +216,15 @@ class MediaController extends Controller {
             ['episode_number' => $data['episode_number']],
             ['is_watched' => $data['is_watched'], 'watched_at' => $data['watched_at'] ?? null]
         );
+
         return response()->json($episode, 201);
     }
 
-    public function updateEpisode(Request $request, Episode $episode) {
-        if($episode->season->media->user_id !== auth()->id()) abort(403);
+    public function updateEpisode(Request $request, Episode $episode)
+    {
+        if ($episode->season->media->user_id !== auth()->id()) {
+            abort(403);
+        }
 
         $data = $request->validate([
             'is_watched' => 'sometimes|boolean',
@@ -181,6 +239,7 @@ class MediaController extends Controller {
         }
 
         $episode->update($data);
+
         return response()->json($episode->fresh());
     }
 }
