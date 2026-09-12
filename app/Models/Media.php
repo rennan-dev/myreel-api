@@ -17,7 +17,9 @@ class Media extends Model {
     protected $appends = ['image_url'];
 
     protected $fillable = [
-        'user_id', 'type', 'name', 'rating', 'image', 'description', 'release_date', 'is_watched', 'watched_at'
+        'user_id', 'type', 'name', 'rating', 'image', 'description',
+        'cover_x', 'cover_y', 'cover_scale',
+        'release_date', 'is_watched', 'watched_at'
     ];
 
     protected $casts = [
@@ -25,6 +27,9 @@ class Media extends Model {
         'watched_at' => 'date',
         'release_date' => 'date',
         'rating' => 'float',
+        'cover_x' => 'float',
+        'cover_y' => 'float',
+        'cover_scale' => 'float',
     ];
 
     public function user(): BelongsTo {

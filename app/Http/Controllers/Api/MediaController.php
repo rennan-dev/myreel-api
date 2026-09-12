@@ -114,12 +114,13 @@ class MediaController extends Controller {
         $data = $request->validate([
             'season_number' => 'required|integer|min:1',
             'release_date' => 'nullable|date',
+            'title' => 'nullable|string|max:255',
         ]);
 
         // evita duplicar a mesma temporada
         $season = $media->seasons()->firstOrCreate(
             ['season_number' => $data['season_number']],
-            ['release_date' => $data['release_date'] ?? null]
+            ['release_date' => $data['release_date'] ?? null, 'title' => $data['title'] ?? null]
         );
         return response()->json($season, 201);
     }
@@ -130,6 +131,7 @@ class MediaController extends Controller {
         $data = $request->validate([
             'release_date' => 'nullable|date',
             'rating' => 'nullable|numeric|min:1|max:5',
+            'title' => 'nullable|string|max:255',
         ]);
 
         $season->update($data);

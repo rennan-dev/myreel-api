@@ -20,6 +20,11 @@ class StoreMediaRequest extends FormRequest {
             'image' => 'nullable|file|image|mimes:jpeg,jpg,png,webp,gif|max:4096',
             'description' => 'nullable|string',
 
+            // enquadramento da capa definido no editor (posição % e zoom)
+            'cover_x' => 'nullable|numeric|between:-100,100',
+            'cover_y' => 'nullable|numeric|between:-100,100',
+            'cover_scale' => 'nullable|numeric|between:1,5',
+
             // Datas só existem no nível da mídia para FILME.
             // Série/anime: release_date vive na temporada e watched vive no episódio,
             // então esses campos são excluídos da validação para serie/anime.
@@ -42,6 +47,13 @@ class StoreMediaRequest extends FormRequest {
         // sem arquivo: garante null (URL externa não é mais aceita)
         if (!$this->hasFile('image')) {
             $this->merge(['image' => null]);
+        }
+
+        // enquadramento da capa: remove vazios para não sobrescrever com null
+        foreach (['cover_x', 'cover_y', 'cover_scale'] as $coverField) {
+            if (!$this->filled($coverField)) {
+                $this->request->remove($coverField);
+            }
         }
     }
 }
