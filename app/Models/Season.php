@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Season extends Model {
     
-    protected $fillable = ['media_id', 'season_number', 'release_date', 'rating', 'episodes_count'];
+    protected $fillable = ['media_id', 'season_number', 'title', 'release_date', 'rating', 'episodes_count'];
 
     protected $casts = ['rating' => 'float', 'release_date' => 'date'];
 
