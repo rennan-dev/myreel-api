@@ -22,3 +22,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+php-lint.txt
+pint-out.txt
+test-out.txt
