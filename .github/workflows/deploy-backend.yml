@@ -1,0 +1,133 @@
+name: Deploy Backend (myreel-api)
+
+on:
+  push:
+    branches:
+      - main
+  # Permite rodar manualmente pela aba Actions
+  workflow_dispatch:
+
+# Evita dois deploys simult├óneos brigando pelos mesmos arquivos na Hostinger
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & Deploy (Hostinger)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Mesma vers├úo m├¡nima exigida pelo composer.json (php ^8.2).
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, curl, libxml, xml, xmlwriter, fileinfo, gd, intl, exif, pdo_mysql
+          coverage: none
+
+      # O .env ├® criado ANTES do composer install para que o
+      # post-autoload-dump (artisan package:discover) funcione.
+      # Ele N├âO ├® enviado ao servidor (exclu├¡do no FTP) ÔÇö o servidor
+      # mant├⌐m o pr├│prio .env.
+      - name: Criar .env de produ├º├úo
+        env:
+          APP_KEY: ${{ secrets.API_APP_KEY }}
+          APP_URL: ${{ secrets.API_APP_URL }}
+          FRONTEND_URL: ${{ secrets.API_FRONTEND_URL }}
+          DB_HOST: ${{ secrets.API_DB_HOST }}
+          DB_PORT: ${{ secrets.API_DB_PORT }}
+          DB_DATABASE: ${{ secrets.API_DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.API_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.API_DB_PASSWORD }}
+        run: |
+          cat > .env <<'EOF'
+          APP_NAME=MyReel
+          APP_ENV=production
+          APP_DEBUG=false
+
+          APP_LOCALE=en
+          APP_FALLBACK_LOCALE=en
+          APP_FAKER_LOCALE=en_US
+
+          APP_MAINTENANCE_DRIVER=file
+
+          BCRYPT_ROUNDS=12
+
+          LOG_CHANNEL=stack
+          LOG_STACK=single
+          LOG_DEPRECATIONS_CHANNEL=null
+          LOG_LEVEL=error
+
+          DB_CONNECTION=mysql
+
+          SESSION_DRIVER=database
+          SESSION_LIFETIME=120
+          SESSION_ENCRYPT=false
+          SESSION_PATH=/
+          SESSION_DOMAIN=null
+
+          BROADCAST_CONNECTION=log
+          FILESYSTEM_DISK=local
+          QUEUE_CONNECTION=database
+
+          CACHE_STORE=database
+
+          MAIL_MAILER=log
+          MAIL_FROM_ADDRESS="hello@example.com"
+
+          VITE_APP_NAME="MyReel"
+          EOF
+          printf 'APP_KEY=%s\n' "$APP_KEY" >> .env
+          printf 'APP_URL=%s\n' "$APP_URL" >> .env
+          printf 'FRONTEND_URL=%s\n' "$FRONTEND_URL" >> .env
+          printf 'DB_HOST=%s\n' "$DB_HOST" >> .env
+          printf 'DB_PORT=%s\n' "$DB_PORT" >> .env
+          printf 'DB_DATABASE=%s\n' "$DB_DATABASE" >> .env
+          printf 'DB_USERNAME=%s\n' "$DB_USERNAME" >> .env
+          printf 'DB_PASSWORD=%s\n' "$DB_PASSWORD" >> .env
+          echo ".env de produ├º├úo criado."
+
+      # Rodar migrations no CI N├âO funciona: o MySQL da Hostinger s├│ ├⌐
+      # acess├¡vel pelo pr├│prio servidor. Migrations devem ser aplicadas
+      # via SSH ap├│s o deploy (ver README-CICD.md).
+      - name: Instalar depend├¬ncias (produ├º├úo)
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Verificar artisan
+        run: php artisan --version
+
+      # Envia o projeto inteiro (inclui vendor/) para a Hostinger.
+      # Exclu├¡dos: .env (servidor mant├⌐m o pr├│prio), storage/ (dados),
+      # public/ (o public_html do servidor j├í tem index.php ajustado e
+      # o symlink storage), sqlite local, testes e artefatos de dev.
+      - name: Enviar projeto para a Hostinger (FTPS)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.HOSTINGER_FTP_HOST }}
+          username: ${{ secrets.HOSTINGER_FTP_USER }}
+          password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_FTP_PORT || 21 }}
+          protocol: ftps
+          local-dir: ./
+          server-dir: ${{ secrets.HOSTINGER_FTP_DIR || '/' }}
+          dangerous-clean-slate: false
+          dry-run: false
+          exclude: |
+            **/.git*
+            **/.github/**
+            **/node_modules/**
+            **/tests/**
+            .env
+            .env.example
+            .phpunit.result.cache
+            php-lint.txt
+            pint-out.txt
+            test-out.txt
+            storage/**
+            public/**
+            database/database.sqlite
+            DO_NOT_UPLOAD_HERE/**
