@@ -2,11 +2,21 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MediaController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// tracking público (chamado pelo frontend) com rate limit
+Route::post('/analytics/track', [AnalyticsController::class, 'track'])
+    ->middleware('throttle:60,1');
+
+// dados do dashboard (protegidos por chave compartilhada)
+Route::middleware('analytics.key')->group(function () {
+    Route::get('/analytics/summary', [AnalyticsController::class, 'summary']);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
