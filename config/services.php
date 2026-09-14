@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'analytics' => [
+        'key' => env('ANALYTICS_KEY'),
+    ],
+
 ];
