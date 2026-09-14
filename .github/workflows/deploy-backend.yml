@@ -32,7 +32,7 @@ jobs:
             set -e
 
             REPO_DIR="$HOME/repos/myreel-api"
-            LIVE_DIR="${MYREEL_LIVE_DIR:-$HOME/api-myreel.rennan-alves.com}"
+            LIVE_DIR="${MYREEL_LIVE_DIR:-$HOME/domains/api-myreel.rennan-alves.com}"
 
             echo "==> Atualizando clone git em $REPO_DIR"
             cd "$REPO_DIR"
