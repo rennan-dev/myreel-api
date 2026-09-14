@@ -13,12 +13,13 @@
 # Depois roda migrations e caches artisan na pasta live.
 #
 # Configurável via variável de ambiente:
-#   MYREEL_LIVE_DIR  (padrão: ~/api-myreel.rennan-alves.com)
+#   MYREEL_LIVE_DIR  (padrão: ~/domains/api-myreel.rennan-alves.com)
 #
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LIVE_DIR="${MYREEL_LIVE_DIR:-$HOME/api-myreel.rennan-alves.com}"
+# Caminho base atualizado para a estrutura da Hostinger (dentro de domains)
+LIVE_DIR="${MYREEL_LIVE_DIR:-$HOME/domains/api-myreel.rennan-alves.com}"
 
 echo "==> Repo (origem): $REPO_DIR"
 echo "==> Live (destino): $LIVE_DIR"
@@ -41,7 +42,7 @@ echo "==> composer install (produção, no clone)"
 composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
     --working-dir="$REPO_DIR"
 
-echo "==> Sincronizando arquivos (rsync) para $LIVE_DIR"
+echo "==> 1. Sincronizando arquivos do CORE do Laravel para $LIVE_DIR"
 rsync -az --delete \
     --exclude '.env' \
     --exclude '.env.example' \
@@ -65,11 +66,20 @@ rsync -az --delete \
     --exclude 'scripts/' \
     "$REPO_DIR"/ "$LIVE_DIR"/
 
+echo "==> 2. Sincronizando pasta PUBLIC para $LIVE_DIR/public_html"
+# IMPORTANTE: O --exclude 'storage' impede que o rsync delete o symlink das imagens
+rsync -az --delete \
+    --exclude 'storage' \
+    "$REPO_DIR/public/" "$LIVE_DIR/public_html/"
+
 echo "==> Artisan na pasta live (migrate + caches)"
 cd "$LIVE_DIR"
 php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
 php artisan view:clear
+
+echo "==> Ajustando permissões das pastas de cache e uploads"
+chmod -R 775 "$LIVE_DIR/storage" "$LIVE_DIR/bootstrap/cache"
 
 echo "==> Deploy concluído com sucesso: $(date)"
