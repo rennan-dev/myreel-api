@@ -73,6 +73,15 @@ rsync -az --delete \
     "$REPO_DIR/public/" "$LIVE_DIR/public_html/"
 
 echo "==> Artisan na pasta live (migrate + caches)"
+
+# Garante que a estrutura obrigatória do framework exista
+mkdir -p "$LIVE_DIR/storage/framework/cache/data"
+mkdir -p "$LIVE_DIR/storage/framework/sessions"
+mkdir -p "$LIVE_DIR/storage/framework/views"
+mkdir -p "$LIVE_DIR/storage/logs"
+mkdir -p "$LIVE_DIR/storage/app/public"
+mkdir -p "$LIVE_DIR/bootstrap/cache"
+
 cd "$LIVE_DIR"
 php artisan migrate --force
 php artisan config:cache
