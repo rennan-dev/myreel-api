@@ -4,35 +4,34 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateMediaRequest extends FormRequest {
-
-    public function authorize(): bool {
+class UpdateMediaRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
         return true;
     }
 
-    public function rules(): array {
+    public function rules(): array
+    {
         return [
             'name' => 'sometimes|required|string|max:255',
             'rating' => 'nullable|numeric|min:1|max:5',
-            // capa: apenas upload do dispositivo (nada de URL)
             'image' => 'nullable|file|image|mimes:jpeg,jpg,png,webp,gif|max:4096',
             'description' => 'nullable|string',
 
-            // enquadramento da capa definido no editor (posição % e zoom)
             'cover_x' => 'nullable|numeric|between:-100,100',
             'cover_y' => 'nullable|numeric|between:-100,100',
             'cover_scale' => 'nullable|numeric|between:1,5',
 
-            // Datas só existem no nível da mídia para FILME.
-            // Na edição o `type` vem do model (não é editável), então valida pelo valor atual.
-            'release_date' => 'exclude_if:type,serie|exclude_if:type,anime|nullable|date',
-            'is_watched' => 'exclude_if:type,serie|exclude_if:type,anime|nullable|boolean',
-            'watched_at' => 'exclude_if:type,serie|exclude_if:type,anime|nullable|date|required_if:is_watched,true|required_if:is_watched,1',
+            'release_date' => 'nullable|date',
+    
+            'status' => 'nullable|in:nao_assisti,assistindo,assistido',
         ];
     }
 
-    protected function prepareForValidation(): void {
-        // multipart (PUT via _method) chega com tudo como string: normaliza vazios e booleanos
+    protected function prepareForValidation(): void
+    {
+        // multipart (PUT via _method) chega com tudo como string: normaliza vazios
         $merged = [];
 
         if ($this->exists('rating')) {
@@ -44,29 +43,20 @@ class UpdateMediaRequest extends FormRequest {
         if ($this->exists('release_date')) {
             $merged['release_date'] = $this->filled('release_date') ? $this->input('release_date') : null;
         }
-        if ($this->exists('watched_at')) {
-            $merged['watched_at'] = $this->filled('watched_at') ? $this->input('watched_at') : null;
-        }
-        if ($this->exists('is_watched')) {
-            $merged['is_watched'] = $this->boolean('is_watched');
-        }
-
-        // injeta o tipo atual para o exclude_if funcionar (tipo não é editável)
-        $media = $this->route('media');
-        if ($media instanceof \App\Models\Media) {
-            $merged['type'] = $media->type;
+        if ($this->filled('status')) {
+            $merged['status'] = $this->input('status');
         }
 
         $this->merge($merged);
 
         // sem arquivo: garante null (URL externa não é mais aceita)
-        if (!$this->hasFile('image')) {
+        if (! $this->hasFile('image')) {
             $this->merge(['image' => null]);
         }
 
         // enquadramento da capa: remove vazios para não sobrescrever com null
         foreach (['cover_x', 'cover_y', 'cover_scale'] as $coverField) {
-            if (!$this->filled($coverField)) {
+            if (! $this->filled($coverField)) {
                 $this->request->remove($coverField);
             }
         }
