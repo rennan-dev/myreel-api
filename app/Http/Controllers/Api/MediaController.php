@@ -7,6 +7,7 @@ use App\Http\Requests\StoreMediaRequest;
 use App\Http\Requests\UpdateMediaRequest;
 use App\Models\Anime;
 use App\Models\Filme;
+use App\Models\Jogo;
 use App\Models\Media;
 use App\Models\Serie;
 use Illuminate\Support\Facades\Storage;
@@ -26,13 +27,14 @@ class MediaController extends Controller
             $data['image'] = null;
         }
 
-        // status de consumo (Não Assisti / Assistindo / Assistido)
+        // status de consumo (Não Assisti / Assistindo / Assistido — ou status de jogo)
         $data['status'] ??= 'nao_assisti';
 
         $media = match ($data['type']) {
             'filme' => Filme::create($data),
             'serie' => Serie::create($data),
             'anime' => Anime::create($data),
+            'jogo' => Jogo::create($data),
         };
 
         return response()->json([
@@ -101,5 +103,10 @@ class MediaController extends Controller
     public function filmes()
     {
         return response()->json(Filme::where('user_id', auth()->id())->get());
+    }
+
+    public function jogos()
+    {
+        return response()->json(Jogo::where('user_id', auth()->id())->get());
     }
 }

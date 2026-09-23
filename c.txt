@@ -1,0 +1,25 @@
+
+  myreel.media .....................................................................................................................................  
+  Columns ....................................................................................................................................... 14  
+
+   RuntimeException 
+
+  The "intl" PHP extension is required to use the [format] method.
+
+  at vendor\laravel\framework\src\Illuminate\Support\Number.php:453
+    449▕     {
+    450▕         if (! extension_loaded('intl')) {
+    451▕             $method = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]['function'];
+    452▕ 
+  ➜ 453▕             throw new RuntimeException('The "intl" PHP extension is required to use the ['.$method.'] method.');
+    454▕         }
+    455▕     }
+    456▕ }
+    457▕
+
+  1   vendor\laravel\framework\src\Illuminate\Support\Number.php:38
+      Illuminate\Support\Number::ensureIntlExtensionIsInstalled()
+
+  2   vendor\laravel\framework\src\Illuminate\Support\Number.php:216
+      Illuminate\Support\Number::format()
+
