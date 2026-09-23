@@ -24,8 +24,9 @@ class UpdateMediaRequest extends FormRequest
             'cover_scale' => 'nullable|numeric|between:1,5',
 
             'release_date' => 'nullable|date',
-    
-            'status' => 'nullable|in:nao_assisti,assistindo,assistido',
+
+            // status de consumo da mídia (assistir: filme/série/anime; jogar: jogo)
+            'status' => 'nullable|in:nao_assisti,assistindo,assistido,nao_joguei,jogando,zerei,platinado',
         ];
     }
 
