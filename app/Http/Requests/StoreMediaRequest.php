@@ -14,7 +14,7 @@ class StoreMediaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => 'required|in:filme,serie,anime',
+            'type' => 'required|in:filme,serie,anime,jogo',
             'name' => 'required|string|max:255',
             'rating' => 'nullable|numeric|min:1|max:5',
             // capa: apenas upload do dispositivo (nada de URL)
@@ -28,8 +28,8 @@ class StoreMediaRequest extends FormRequest
 
             'release_date' => 'nullable|date',
 
-            // status de consumo da mídia (vale para filme, série e anime)
-            'status' => 'nullable|in:nao_assisti,assistindo,assistido',
+            // status de consumo da mídia (assistir: filme/série/anime; jogar: jogo)
+            'status' => 'nullable|in:nao_assisti,assistindo,assistido,nao_joguei,jogando,zerei,platinado',
         ];
     }
 
